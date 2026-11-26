@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"strconv"
+
 	"site-health-monitoring/agent/collectors"
 )
 
@@ -9,22 +12,22 @@ func main() {
 	fmt.Println("Agent started")
 
 	// Operating System
-	result1, err := collectors.GetOSInfo()
+	osInfo, err := collectors.GetOSInfo()
 
 	fmt.Println()
 	fmt.Println("System Information:")
 
+	fmt.Printf("OS: %s\n", osInfo.OS)
+	fmt.Printf("Architecture: %s\n", osInfo.Architecture)
+	fmt.Printf("Version: %s\n", osInfo.Version)
+
 	if err != nil {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
-	} else {
-		fmt.Printf("OS: %s\n", result1.OS)
-		fmt.Printf("Architecture: %s\n", result1.Architecture)
-		fmt.Printf("Version: %s\n", result1.Version)
 	}
 
 	// Memory
-	result2, err := collectors.GetMemoryInfo()
+	memoryInfo, err := collectors.GetMemoryInfo()
 
 	fmt.Println()
 	fmt.Println("Memory Information:")
@@ -33,16 +36,16 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		totalGB := float64(result2.Total) / (1024 * 1024 * 1024)
-		usedGB := float64(result2.Used) / (1024 * 1024 * 1024)
+		totalGiB := float64(memoryInfo.Total) / (1024 * 1024 * 1024)
+		usedGiB := float64(memoryInfo.Used) / (1024 * 1024 * 1024)
 
-		fmt.Printf("Total: %.2f GB\n", totalGB)
-		fmt.Printf("Used: %.2f GB\n", usedGB)
-		fmt.Printf("Usage: %.2f%%\n", result2.UsedPercent)
+		fmt.Printf("Total: %.2f GiB\n", totalGiB)
+		fmt.Printf("Used: %.2f GiB\n", usedGiB)
+		fmt.Printf("Usage: %.2f%%\n", memoryInfo.UsedPercent)
 	}
 
 	// CPU
-	result3, err := collectors.GetCPUInfo()
+	cpuInfo, err := collectors.GetCPUInfo()
 
 	fmt.Println()
 	fmt.Println("CPU Information:")
@@ -51,11 +54,11 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		fmt.Printf("Usage: %.2f%%\n", result3.UsagePercent)
+		fmt.Printf("Usage: %.2f%%\n", cpuInfo.UsagePercent)
 	}
 
 	// Logged-in Users
-	result4, err := collectors.GetLoggedInUsers()
+	users, err := collectors.GetLoggedInUsers()
 
 	fmt.Println()
 	fmt.Println("Logged-in Users:")
@@ -64,7 +67,13 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		for _, user := range result4 {
+		fmt.Printf("Total Records: %d\n", len(users))
+
+		if len(users) == 0 {
+			fmt.Println("No logged-in users detected")
+		}
+
+		for _, user := range users {
 			fmt.Printf(
 				"Username: %s | Terminal: %s | Host: %s\n",
 				user.Username,
@@ -75,7 +84,7 @@ func main() {
 	}
 
 	// Open Ports
-	result5, err := collectors.GetOpenPorts()
+	ports, err := collectors.GetOpenPorts()
 
 	fmt.Println()
 	fmt.Println("Open / Listening Ports:")
@@ -84,18 +93,26 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		for _, port := range result5 {
+		fmt.Printf("Total Records: %d\n", len(ports))
+
+		if len(ports) == 0 {
+			fmt.Println("No open or listening ports detected")
+		}
+
+		for _, port := range ports {
 			fmt.Printf(
-				"IP: %s | Port: %d | PID: %d\n",
+				"IP: %s | Port: %d | PID: %d | Protocol: %s | Family: %s\n",
 				port.Ip,
 				port.Port,
 				port.PID,
+				port.Protocol,
+				port.Family,
 			)
 		}
 	}
 
 	// Active Network Connections
-	result6, err := collectors.GetActiveConnections()
+	connections, err := collectors.GetActiveConnections()
 
 	fmt.Println()
 	fmt.Println("Active Network Connections:")
@@ -104,21 +121,37 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		for _, connection := range result6 {
-			fmt.Printf(
-				"Local: %s:%d | Remote: %s:%d | Status: %s | PID: %d\n",
+		fmt.Printf("Total Records: %d\n", len(connections))
+
+		if len(connections) == 0 {
+			fmt.Println("No established TCP connections detected")
+		}
+
+		for _, connection := range connections {
+			localAddress := net.JoinHostPort(
 				connection.LocalIP,
-				connection.LocalPort,
+				strconv.FormatUint(uint64(connection.LocalPort), 10),
+			)
+
+			remoteAddress := net.JoinHostPort(
 				connection.RemoteIP,
-				connection.RemotePort,
+				strconv.FormatUint(uint64(connection.RemotePort), 10),
+			)
+
+			fmt.Printf(
+				"Local: %s | Remote: %s | Status: %s | PID: %d | Protocol: %s | Family: %s\n",
+				localAddress,
+				remoteAddress,
 				connection.Status,
 				connection.PID,
+				connection.Protocol,
+				connection.Family,
 			)
 		}
 	}
 
 	// Installed Applications
-	result7, err := collectors.GetInstalledApplications()
+	applications, err := collectors.GetInstalledApplications()
 
 	fmt.Println()
 	fmt.Println("Installed Applications:")
@@ -127,13 +160,19 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		for _, application := range result7 {
+		fmt.Printf("Total Applications: %d\n", len(applications))
+
+		if len(applications) == 0 {
+			fmt.Println("No installed applications detected")
+		}
+
+		for _, application := range applications {
 			fmt.Printf("Name: %s\n", application.Name)
 		}
 	}
 
 	// Firewall
-	result8, err := collectors.GetFirewallInfo()
+	firewall, err := collectors.GetFirewallInfo()
 
 	fmt.Println()
 	fmt.Println("Firewall Information:")
@@ -142,59 +181,65 @@ func main() {
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		fmt.Printf("Status: %s\n", result8.Status)
+		fmt.Printf("Status: %s\n", firewall.Status)
 	}
 
 	// Antivirus
-	result9, err := collectors.GetAntivirusInfo()
+	antivirus, err := collectors.GetAntivirusInfo()
 
 	fmt.Println()
 	fmt.Println("Antivirus Information:")
+	fmt.Printf("Name: %s\n", antivirus.Name)
 
 	if err != nil {
-		fmt.Println("Name: Unknown")
 		fmt.Println("Status: Unavailable")
 		fmt.Println("Collection error:", err)
 	} else {
-		fmt.Printf("Name: %s\n", result9.Name)
-		fmt.Printf("Status: %s\n", result9.Status)
+		fmt.Printf("Status: %s\n", antivirus.Status)
 	}
 
 	// Security Updates
-	result10, err := collectors.GetSecurityUpdateInfo()
+	updates, err := collectors.GetSecurityUpdateInfo()
 
 	fmt.Println()
 	fmt.Println("Security Update Information:")
+	fmt.Printf("Scope: %s\n", updates.Scope)
 
 	if err != nil {
 		fmt.Println("Status: Unavailable")
+		fmt.Println("Available Updates: Unknown")
 		fmt.Println("Collection error:", err)
 	} else {
-		fmt.Printf("Status: %s\n", result10.Status)
+		fmt.Printf("Status: %s\n", updates.Status)
 
-		if result10.Status == "UpdatesAvailable" ||
-			result10.Status == "UpToDate" {
-			fmt.Printf("Available Updates: %d\n", result10.AvailableCount)
+		if updates.Status == "UpdatesAvailable" ||
+			updates.Status == "UpToDate" {
+
+			fmt.Printf("Available Updates: %d\n", updates.AvailableCount)
 		} else {
 			fmt.Println("Available Updates: Unknown")
 		}
 	}
 
 	// Failed Login Attempts
-	result11, err := collectors.GetFailedLoginInfo()
+	failedLogins, err := collectors.GetFailedLoginInfo()
 
 	fmt.Println()
 	fmt.Println("Failed Login Information:")
-	fmt.Printf("Time Range: %s\n", result11.TimeRange)
+	fmt.Printf("Time Range: %s\n", failedLogins.TimeRange)
 
 	if err != nil {
 		fmt.Println("Status: Unavailable")
+		fmt.Println("Failed Authentication Events: Unknown")
 		fmt.Println("Collection error:", err)
 	} else {
-		fmt.Printf("Status: %s\n", result11.Status)
+		fmt.Printf("Status: %s\n", failedLogins.Status)
 
-		if result11.Status == "Available" {
-			fmt.Printf("Failed Authentication Events: %d\n", result11.Count)
+		if failedLogins.Status == "Available" {
+			fmt.Printf(
+				"Failed Authentication Events: %d\n",
+				failedLogins.Count,
+			)
 		} else {
 			fmt.Println("Failed Authentication Events: Unknown")
 		}
