@@ -1,8 +1,10 @@
 package collectors
 
 import (
+	"context"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type FirewallInfo struct {
@@ -11,15 +13,19 @@ type FirewallInfo struct {
 
 func GetFirewallInfo() (FirewallInfo, error) {
 	var fireWall FirewallInfo
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		ctx,
 		"/usr/libexec/ApplicationFirewall/socketfilterfw",
 		"--getglobalstate",
 	)
 	result, err := cmd.Output()
 
 	if err != nil {
-		return FirewallInfo{}, err
+		fireWall.Status = "Unavailable"
+		return fireWall, err
 	}
 	info := string(result)
 	if strings.Contains(info, "State = 1") {
